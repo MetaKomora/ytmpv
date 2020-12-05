@@ -1,0 +1,31 @@
+#!/bin/bash
+
+bkpIFS=$IFS
+IFS=$'\n'
+
+[[ -d $HOME/.cache/ytmpv ]] || mkdir $HOME/.cache/ytmpv;
+cd $HOME/.cache/ytmpv;
+
+youtube-dl ytsearch10:"$1" --get-title | cat > tempTitleFile.txt
+youtube-dl ytsearch10:"$1" --get-id | cat > tempIdFile.txt
+
+cat tempTitleFile.txt
+paste -d " " tempIdFile.txt tempTitleFile.txt > fileresults.txt
+declare -a searchResults=($(cat fileresults.txt))
+selectedVideo=$(zenity --list --column="Resultados da busca: $1" "${searchResults[@]}" --width=800 --height=480)
+
+if [[ -z $selectedVideo ]]; then
+    printf "\n\n\n \e[31;1mNenhum resultado foi selecionado. Saindo\n\n\n\n";
+    exit;
+fi
+
+printf "\n\n\n \e[32;1mVideo que será executado: $selectedVideo \n\n\n\n";
+IFS=$"\ "
+read -ra videoID <<< "$selectedVideo"
+
+cd $HOME
+rm -rf $HOME/.cache/ytmpv
+IFS=$bkpIFS
+
+
+youtube-dl -f best "${videoID[0]}" -o- | mpv -
