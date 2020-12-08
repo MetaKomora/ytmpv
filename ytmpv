@@ -1,31 +1,29 @@
 #!/bin/bash
 
-bkpIFS=$IFS
 IFS=$'\n'
-
 [[ -d $HOME/.cache/ytmpv ]] || mkdir $HOME/.cache/ytmpv;
 cd $HOME/.cache/ytmpv;
 
-youtube-dl ytsearch10:"$1" --get-title | cat > tempTitleFile.txt
-youtube-dl ytsearch10:"$1" --get-id | cat > tempIdFile.txt
+youtube-dl ytsearch20:"$1" --get-id --get-title > searchResults.txt
 
-cat tempTitleFile.txt
-paste -d " " tempIdFile.txt tempTitleFile.txt > fileresults.txt
-declare -a searchResults=($(cat fileresults.txt))
-selectedVideo=$(zenity --list --column="Resultados da busca: $1" "${searchResults[@]}" --width=800 --height=480)
+# Create a alias (:a) to \n with N, then replace every new line with  (###) 
+declare -a searchResults=($(sed ":a;N;s/\n/ (###) /g" searchResults.txt))
+echo $(zenity --list --column="ytmpv | Search results for: $1" "${searchResults[@]}" --width=800 --height=480) | tee selectedVideo.txt
 
-if [[ -z $selectedVideo ]]; then
-    printf "\n\n\n \e[31;1mNenhum resultado foi selecionado. Saindo\n\n\n\n";
+# check if selectedVideo.txt is not empty
+if [[ -z $(cat selectedVideo.txt) ]]; then
+    printf "\n\n \e[31;1mVideo not selected. Leaving\n\n\n";
+    rm searchResults.txt selectedVideo.txt
     exit;
 fi
 
-printf "\n\n\n \e[32;1mVideo que será executado: $selectedVideo \n\n\n\n";
-IFS=$"\ "
-read -ra videoID <<< "$selectedVideo"
+# Replace the expression and all content after that to nothing, to get only the video title to print on terminal
+printf "\n\n\n \e[32;1mVideo to be played: $(sed 's/ (###) .*//g' selectedVideo.txt) \n\n\n\n";
+unset $IFS
 
-cd $HOME
-rm -rf $HOME/.cache/ytmpv
-IFS=$bkpIFS
+# Replace all content before a whitespace with nothing, to get the videoID
+videoID=$(sed "s/.* //g" selectedVideo.txt)
 
+rm searchResults.txt selectedVideo.txt; cd $HOME
 
-youtube-dl -f best "${videoID[0]}" -o- | mpv -
+youtube-dl -f best "$videoID" -o- | mpv -
