@@ -20,5 +20,7 @@ sudo mv ytmpv /usr/local/bin;
 # Usage
 
 ```shell
-ytmpv "your youtube search"
+ytmpv
 ```
+
+Note: the search takes some seconds, so please be patient

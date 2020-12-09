@@ -4,11 +4,15 @@ IFS=$'\n'
 [[ -d $HOME/.cache/ytmpv ]] || mkdir $HOME/.cache/ytmpv;
 cd $HOME/.cache/ytmpv;
 
-youtube-dl ytsearch20:"$1" --get-id --get-title > searchResults.txt
+videoSearch=$(zenity --entry --text "Type your search:" --width=400 --height=100)
+
+[ -z "$videoSearch" ] && { printf "\n\n \033[31;1mSearch not detected. Leaving\n\n\n"; exit; }
+
+youtube-dl ytsearch20:"$videoSearch" --get-id --get-title > searchResults.txt
 
 # Create a alias (:a) to \n with N, then replace every new line with  (###) 
 declare -a searchResults=($(sed ":a;N;s/\n/ (###) /g" searchResults.txt))
-echo $(zenity --list --column="ytmpv | Search results for: $1" "${searchResults[@]}" --width=800 --height=480) | tee selectedVideo.txt
+echo $(zenity --list --column="ytmpv | Search results for: $videoSearch" "${searchResults[@]}" --width=800 --height=480) | tee selectedVideo.txt
 
 # check if selectedVideo.txt is not empty
 if [[ -z $(cat selectedVideo.txt) ]]; then
