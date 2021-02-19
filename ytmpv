@@ -8,6 +8,13 @@ videoSearch=$(zenity --entry --text "Type your search:" --width=400 --height=100
 
 [ -z "$videoSearch" ] && { printf "\n\n \033[31;1mSearch not detected. Leaving\n\n\n"; exit; }
 
+if [[ "${videoSearch:0:32}" = "https://www.youtube.com/watch?v=" ]] || [[ "${videoSearch:0:17}" = "https://youtu.be/" ]]; then {
+	printf "\n\n \e[32;1mDetected video link. Opening on MPV\n\n"
+	mpv "$(xclip -o &1>&2>/dev/null || wl-paste &1>&2>/dev/null)"
+	exit;
+}
+fi
+
 # Separating search from options with -- to escape searchs or links starting with dash (-)
 youtube-dl --get-id --get-title ytsearch20:--"$videoSearch" > searchResults.txt
 
