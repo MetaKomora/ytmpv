@@ -8,6 +8,8 @@ Script to search, list and execute youtube videos directly on mpv
 - zenity
 - [youtube-dl](https://github.com/ytdl-org/youtube-dl)
 - [mpv](https://mpv.io/)
+- xclip (on Xorg)
+- wl-clipboard (on Wayland)
 
 # Install
 
