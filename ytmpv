@@ -12,10 +12,10 @@ function videocheck (){
 	if [[ "${videoSearch:0:32}" = "https://www.youtube.com/watch?v=" ]] || [[ "${videoSearch:0:17}" = "https://youtu.be/" ]]; then {
 		printf "\n\n \e[32;1mDetected video link. Opening on MPV\n\n"
 		[ "$XDG_SESSION_TYPE" != "x11" ] && {
-			mpv "$(wl-paste)"
+			mpv --hwdec=auto "$(wl-paste)"
 			exit;
 		}
-		mpv "$(xclip -o)"
+		mpv --hwdec=auto "$(xclip -o)"
 		exit;
 	}
 	fi
@@ -46,4 +46,4 @@ videoID=$(sed "s/.* //g" selectedVideo.txt)
 
 rm searchResults.txt selectedVideo.txt; cd $HOME
 
-youtube-dl -f best -o- -- "$videoID" | mpv -
+youtube-dl -f best -o- -- "$videoID" | mpv --hwdec=auto -
