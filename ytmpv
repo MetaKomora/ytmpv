@@ -1,49 +1,117 @@
 #!/bin/bash
 
-IFS=$'\n'
-[[ -d $HOME/.cache/ytmpv ]] || mkdir $HOME/.cache/ytmpv;
-cd $HOME/.cache/ytmpv;
+#
+##    Author: Mateus Martins (MetaKomora)
+##    Title: Youtube to MPV (ytmpv)
+##    Description: Search and open Youtube videos and Twitch streams on MPV
+##    Dependencies:
+##    - wl-clipboard - to paste URL on Wayland
+##    - xclip - to paste URL on Xorg
+##    - yad - to show dialog entry to select video resolution and paste URL
+##    - mpv - to execute the video
+##    - yt-dlp - to open links on MPV, configure resolution and hardware acceleration
+#
 
-videoSearch=$(zenity --entry --text "Type your search:" --width=400 --height=100)
+informationIcon="/usr/share/icons/Adwaita/32x32/status/dialog-information-symbolic.symbolic.png"
+errorIcon="/usr/share/icons/Adwaita/32x32/status/dialog-error-symbolic.symbolic.png"
+scriptTitle="Youtube to MPV"
 
-[ -z "$videoSearch" ] && { printf "\n\n \033[31;1mSearch not detected. Leaving\n\n\n"; exit; }
+videoSearch=$(yad --entry --text "Type your search:" --width=400 --height=100)
 
-function videocheck (){
-	if [[ "${videoSearch:0:32}" = "https://www.youtube.com/watch?v=" ]] || [[ "${videoSearch:0:17}" = "https://youtu.be/" ]]; then {
-		printf "\n\n \e[32;1mDetected video link. Opening on MPV\n\n"
+## If empty, then print a message and exit script
+[ -z "$videoSearch" ] && { notify-send -i "$errorIcon" -u "critical" "$scriptTitle" "Search or URL not detected. Leaving"; exit; }
+
+function videoLog(){
+	
+	# If no history file is found, create one
+	[[ ! -a ytmpv-history.md ]] && { touch ytmpv-history.md; }
+	videoTitle="$(yt-dlp --get-title $videoSearch)"
+	printf "[$videoTitle]($videoSearch)\n" >> ytmpv-history.md
+}
+
+function resolutionOptions(){
+	
+	resolutionOption=$(yad --list --column="Select the resolution for the video" "1080p" "720p" "480p" --width=600 --height=400)
+		
+	# echo "${resolutionOption//|/}") = "1080p"    it's the same as   echo "$resolutionOption" | sed "s/|//") = "1080p"
+	if [[ "${resolutionOption//|/}" = "1080p" ]]; then {
+	    mpvResolution=--ytdl-format="bestvideo[height<=?1080][vcodec!=?vp9]+bestaudio/best"
+	}
+	elif [[ "${resolutionOption//|/}" = "720p" ]]; then {
+	    mpvResolution=--ytdl-format="bestvideo[height<=?720][vcodec!=?vp9]+bestaudio/best"
+	}
+    elif [[ "${resolutionOption//|/}" = "480p" ]]; then {
+	    mpvResolution=--ytdl-format="bestvideo[height<=?480][vcodec!=?vp9]+bestaudio/best"
+	}
+	else
+	    notify-send -i "$errorIcon" -u "critical" "$scriptTitle" "No resolution selected or identified. Script closed";
+	    exit;
+	fi
+}
+
+function videocheck(){
+
+	if [[ "${videoSearch:0:32}" = "https://www.youtube.com/watch?v=" ]] || [[ "${videoSearch:0:17}" = "https://youtu.be/" ]] || [[ "${videoSearch:0:22}" = "https://www.twitch.tv/" ]] || [[ "${videoSearch:0:27}" = "https://youtube.com/shorts/" ]]; then {
+		
+		resolutionOptions
+
+		notify-send -i "$informationIcon" "$scriptTitle" "Detected video URL and resolution. Opening on MPV."
+
+		videoLog
+
 		[ "$XDG_SESSION_TYPE" != "x11" ] && {
-			mpv --hwdec=auto "$(wl-paste)"
+			mpv --hwdec=auto "$mpvResolution" "$(wl-paste)" 2> /dev/null || io.mpv.Mpv --hwdec=auto "$mpvResolution" "$(wl-paste)"
 			exit;
 		}
-		mpv --hwdec=auto "$(xclip -o)"
+		mpv --hwdec=auto "$mpvResolution" "$(xclip -o)" 2> /dev/null || io.mpv.Mpv --hwdec=auto "$mpvResolution" "$(xclip -o)"
 		exit;
 	}
 	fi
 }
 
+[[ -d $HOME/.cache/yt-dlp ]] || mkdir $HOME/.cache/yt-dlp;
+cd $HOME/.cache/yt-dlp;
+
 videocheck
 
+IFS=$'\n'
+
+notify-send -i "$informationIcon" "$scriptTitle" "Searching your video. Wait a few seconds"
+
 # Separating search from options with -- to escape searchs or links starting with dash (-)
-youtube-dl --get-id --get-title ytsearch20:--"$videoSearch" > searchResults.txt
+yt-dlp --get-id --get-title --flat-playlist ytsearch80:--"$videoSearch" > searchResults.txt
 
-# Create a alias (:a) to \n with N, then replace every new line with  (###) 
+# Create a alias (:a) to \n with N, then replace new line with  (###) , to became "title + id (###) " and pass it to an array
 declare -a searchResults=($(sed ":a;N;s/\n/ (###) /g" searchResults.txt))
-echo $(zenity --list --column="ytmpv | Search results for: $videoSearch" "${searchResults[@]}" --width=800 --height=480) | tee selectedVideo.txt
+#declare -a searchResults=($(sed -z "s/\n/ (###) /g" searchResults.txt))
 
-# check if selectedVideo.txt is not empty
-if [[ -z $(cat selectedVideo.txt) ]]; then
-    printf "\n\n \e[31;1mVideo not selected. Leaving\n\n\n";
-    rm searchResults.txt selectedVideo.txt
+# Show video results on a list to the user select one
+selectedVideo="$(yad --list --column="ytmpv | Search results for: $videoSearch" "${searchResults[@]}" --width=800 --height=600)"
+
+# Removing the pipe "|" character that yad placed at the end of the variable
+selectedVideo="${selectedVideo::-1}"
+
+# check if $selectedVideo is empty
+if [[ -z $selectedVideo ]]; then
+    notify-send -i "$errorIcon" -u "critical" "$scriptTitle" "Video not selected. Leaving"
     exit;
 fi
 
+
 # Replace the expression and all content after that to nothing, to get only the video title to print on terminal
-printf "\n\n\n \e[32;1mVideo to be played: $(sed 's/ (###) .*//g' selectedVideo.txt) \n\n\n\n";
+videoTitle="$(sed 's/ (###) .*//g' <<< $selectedVideo)"
+notify-send -i "$informationIcon" "$scriptTitle" "Video to be played: $videoTitle";
 unset $IFS
 
-# Replace all content before a whitespace with nothing, to get the videoID
-videoID=$(sed "s/.* //g" selectedVideo.txt)
+# Replace all content before a whitespace with nothing to get the video ID. Then put before the video ID the Youtube URL
+videoID="$(sed "s/.* //g" <<< $selectedVideo)"
+videoSearch="https://youtu.be/$videoID"
 
-rm searchResults.txt selectedVideo.txt; cd $HOME
+videoLog
 
-youtube-dl -f best -o- -- "$videoID" | mpv --hwdec=auto -
+# Cleanup
+rm searchResults.txt; cd $HOME
+
+resolutionOptions
+
+mpv --hwdec=auto "$mpvResolution" "$videoSearch" 2> /dev/null || io.mpv.Mpv --hwdec=auto "$mpvResolution" "$videoSearch"

@@ -1,19 +1,19 @@
 # ytmpv
 
-Script to search, list and execute youtube videos directly on mpv
+Script to search, list and execute Youtube videos and Twitch streams directly on MPV
 
 # Requirements
 
 - git
-- zenity
-- [youtube-dl](https://github.com/ytdl-org/youtube-dl)
+- yad
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 - [mpv](https://mpv.io/)
 - xclip (on Xorg)
 - wl-clipboard (on Wayland)
 
 # Install
 
-```shell
+```sh
 git clone https://github.com/MetaKomora/ytmpv.git && cd ytmpv;
 chmod +x ytmpv;
 sudo mv ytmpv /usr/local/bin;
@@ -21,8 +21,6 @@ sudo mv ytmpv /usr/local/bin;
 
 # Usage
 
-```shell
+```sh
 ytmpv
 ```
-
-Note: the search takes some seconds, so please be patient
